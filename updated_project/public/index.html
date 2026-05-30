@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Бібліотека — Оренда книг</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0e0c0a; --surface: #18150f; --card: #211d15;
+      --border: #2e2820; --accent: #c8922a; --accent2: #e8b84b;
+      --text: #f0e8d8; --muted: #8a7d6a;
+      --green: #4caf82; --red: #d4614a; --radius: 10px;
+    }
+
+    body { background: var(--bg); color: var(--text); font-family: 'Nunito', sans-serif; min-height: 100vh; }
+
+    /* ── Auth screen ── */
+    #auth-screen {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh; padding: 1rem;
+    }
+    .auth-box {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 14px; padding: 2.5rem 2rem; width: 100%; max-width: 380px;
+    }
+    .auth-logo {
+      font-family: 'Playfair Display', serif; font-size: 1.6rem;
+      color: var(--accent2); text-align: center; margin-bottom: 0.3rem;
+    }
+    .auth-sub { text-align: center; font-size: 0.78rem; color: var(--muted); margin-bottom: 2rem; font-family: 'IBM Plex Mono', monospace; }
+    .auth-tabs { display: flex; gap: 0; margin-bottom: 1.5rem; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .auth-tab {
+      flex: 1; padding: 0.55rem; text-align: center;
+      font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem;
+      cursor: pointer; background: transparent; color: var(--muted); border: none;
+      transition: all 0.2s;
+    }
+    .auth-tab.active { background: rgba(200,146,42,0.12); color: var(--accent2); }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem;
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo { font-family: 'Playfair Display', serif; font-size: 1.4rem; color: var(--accent2); }
+    .logo span { color: var(--muted); font-size: 0.85rem; font-family: 'IBM Plex Mono', monospace; }
+    header nav { margin-left: auto; display: flex; gap: 0.5rem; align-items: center; }
+    header nav button {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.72rem; padding: 0.4rem 0.9rem; border-radius: 6px; cursor: pointer; transition: all 0.2s;
+    }
+    header nav button:hover, header nav button.active { border-color: var(--accent); color: var(--accent2); background: rgba(200,146,42,0.08); }
+    .user-pill {
+      font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem;
+      padding: 0.35rem 0.8rem; border-radius: 20px;
+      background: rgba(200,146,42,0.1); color: var(--accent2);
+      border: 1px solid rgba(200,146,42,0.3);
+    }
+    .btn-logout {
+      background: rgba(212,97,74,0.1) !important; border-color: var(--red) !important;
+      color: var(--red) !important;
+    }
+
+    /* ── App ── */
+    #app { display: none; }
+    main { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .section-title {
+      font-family: 'Playfair Display', serif; font-size: 1.3rem;
+      color: var(--accent2); margin-bottom: 1rem;
+      border-left: 3px solid var(--accent); padding-left: 0.75rem;
+    }
+
+    .panel { display: none; animation: fadeIn 0.3s ease; }
+    .panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    /* ── Book Grid ── */
+    .books-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .book-card {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.2rem;
+      transition: border-color 0.2s, transform 0.2s; position: relative; overflow: hidden;
+    }
+    .book-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, var(--accent), transparent); opacity: 0; transition: opacity 0.2s;
+    }
+    .book-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .book-card:hover::before { opacity: 1; }
+    .book-title { font-family: 'Playfair Display', serif; font-size: 1rem; margin-bottom: 0.25rem; }
+    .book-author { font-size: 0.82rem; color: var(--muted); margin-bottom: 0.6rem; }
+    .book-meta { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.8rem; }
+    .tag { font-family: 'IBM Plex Mono', monospace; font-size: 0.7rem; padding: 0.2rem 0.5rem; border-radius: 4px; background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+    .badge { font-size: 0.7rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 20px; }
+    .badge.available { background: rgba(76,175,130,0.15); color: var(--green); border: 1px solid rgba(76,175,130,0.3); }
+    .badge.rented    { background: rgba(212,97,74,0.15);  color: var(--red);   border: 1px solid rgba(212,97,74,0.3); }
+    .rented-info { font-size: 0.75rem; color: var(--muted); margin-top: 0.4rem; font-family: 'IBM Plex Mono', monospace; }
+
+    /* ── Buttons ── */
+    .book-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.8rem; }
+    .btn { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; padding: 0.35rem 0.8rem; border-radius: 6px; border: 1px solid; cursor: pointer; transition: all 0.15s; }
+    .btn-rent   { background: rgba(200,146,42,0.1); border-color: var(--accent); color: var(--accent2); }
+    .btn-return { background: rgba(76,175,130,0.1); border-color: var(--green);  color: var(--green); }
+    .btn-delete { background: rgba(212,97,74,0.1);  border-color: var(--red);    color: var(--red); }
+    .btn:hover  { opacity: 0.75; }
+    .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+    /* ── Form ── */
+    .form-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; max-width: 480px; }
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 0.35rem; font-family: 'IBM Plex Mono', monospace; }
+    input, select {
+      width: 100%; background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); padding: 0.6rem 0.8rem; border-radius: 6px;
+      font-family: 'Nunito', sans-serif; font-size: 0.9rem; outline: none; transition: border-color 0.2s;
+    }
+    input:focus, select:focus { border-color: var(--accent); }
+    select option { background: var(--surface); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0e0c0a; border: none; padding: 0.7rem 1.5rem;
+      font-family: 'IBM Plex Mono', monospace; font-weight: 500; font-size: 0.82rem;
+      border-radius: 8px; cursor: pointer; transition: opacity 0.2s; width: 100%;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+
+    /* ── Table ── */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; padding: 0.7rem 1rem; font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; color: var(--muted); border-bottom: 1px solid var(--border); }
+    td { padding: 0.8rem 1rem; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    /* ── Filters ── */
+    .filters { display: flex; gap: 0.5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+    .filter-btn {
+      font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem;
+      padding: 0.3rem 0.8rem; border-radius: 20px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); cursor: pointer; transition: all 0.2s;
+    }
+    .filter-btn:hover, .filter-btn.active { border-color: var(--accent); color: var(--accent2); background: rgba(200,146,42,0.08); }
+
+    /* ── Toast ── */
+    #toast {
+      position: fixed; bottom: 1.5rem; right: 1.5rem;
+      background: var(--card); border: 1px solid var(--border);
+      color: var(--text); padding: 0.8rem 1.2rem; border-radius: 8px;
+      font-size: 0.85rem; opacity: 0; transform: translateY(10px);
+      transition: all 0.3s; pointer-events: none; z-index: 999; max-width: 320px;
+    }
+    #toast.show { opacity: 1; transform: none; }
+    #toast.success { border-color: var(--green); }
+    #toast.error   { border-color: var(--red); }
+
+    /* ── Modal ── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 200; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; width: 90%; max-width: 360px; }
+    .modal h3 { font-family: 'Playfair Display', serif; margin-bottom: 1rem; color: var(--accent2); }
+    .modal-actions { display: flex; gap: 0.5rem; margin-top: 1rem; }
+    .btn-cancel { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; }
+    .btn-confirm { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #0e0c0a; border: none; padding: 0.5rem 1rem; border-radius: 6px; cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; font-weight: 600; }
+
+    /* ── Stats ── */
+    .stats-bar { display: flex; gap: 1rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.7rem 1.2rem; font-family: 'IBM Plex Mono', monospace; }
+    .stat .num { font-size: 1.4rem; color: var(--accent2); font-weight: 500; }
+    .stat .lbl { font-size: 0.7rem; color: var(--muted); }
+
+    /* ── Auth error ── */
+    .auth-error { background: rgba(212,97,74,0.12); border: 1px solid rgba(212,97,74,0.3); color: var(--red); border-radius: 6px; padding: 0.6rem 0.8rem; font-size: 0.82rem; margin-bottom: 1rem; display: none; }
+    .auth-error.show { display: block; }
+
+    .empty { color: var(--muted); font-size: 0.9rem; padding: 2rem 0; text-align: center; font-style: italic; }
+    .admin-only { display: none; }
+    body.is-admin .admin-only { display: inline-flex; }
+  </style>
+</head>
+<body>
+
+<!-- ── Екран авторизації ── -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">📚 Бібліотека</div>
+    <div class="auth-sub">library / rental API</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Увійти</button>
+      <button class="auth-tab" id="tab-register" onclick="switchAuthTab('register')">Реєстрація</button>
+    </div>
+
+    <div class="auth-error" id="auth-error"></div>
+
+    <div class="form-group">
+      <label>Логін</label>
+      <input type="text" id="a-username" placeholder="Введіть логін" autocomplete="username"/>
+    </div>
+    <div class="form-group">
+      <label>Пароль</label>
+      <input type="password" id="a-password" placeholder="Введіть пароль" autocomplete="current-password"/>
+    </div>
+    <div class="form-group admin-only" id="role-group" style="display:none">
+      <label>Роль</label>
+      <select id="a-role">
+        <option value="user">Користувач</option>
+        <option value="admin">Адміністратор</option>
+      </select>
+    </div>
+
+    <button class="btn-primary" id="auth-btn" onclick="submitAuth()">Увійти</button>
+
+    <div style="margin-top:1rem;text-align:center;font-size:0.75rem;color:var(--muted);font-family:'IBM Plex Mono',monospace">
+      Тестові акаунти: <strong style="color:var(--accent2)">admin / admin123</strong> · <strong style="color:var(--accent2)">user1 / user123</strong>
+    </div>
+  </div>
+</div>
+
+<!-- ── Основний додаток ── -->
+<div id="app">
+  <header>
+    <div class="logo">📚 Бібліотека <span>/ rental API</span></div>
+    <nav>
+      <button class="active" onclick="switchPanel('books', this)">Каталог</button>
+      <button class="admin-only" onclick="switchPanel('add', this)">Додати книгу</button>
+      <button onclick="switchPanel('rentals', this)">Оренди</button>
+      <span class="user-pill" id="user-pill"></span>
+      <button class="btn-logout" onclick="logout()">Вийти</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- Каталог -->
+    <div class="panel active" id="panel-books">
+      <div class="section-title">Каталог книг</div>
+      <div class="stats-bar" id="stats"></div>
+      <div class="filters">
+        <button class="filter-btn active" onclick="setFilter('all', this)">Усі</button>
+        <button class="filter-btn" onclick="setFilter('available', this)">Доступні</button>
+        <button class="filter-btn" onclick="setFilter('rented', this)">Орендовані</button>
+      </div>
+      <div class="books-grid" id="books-grid"><div class="empty">Завантаження...</div></div>
+    </div>
+
+    <!-- Додати книгу -->
+    <div class="panel" id="panel-add">
+      <div class="section-title">Додати нову книгу</div>
+      <div class="form-card">
+        <div class="form-group"><label>Назва книги *</label><input type="text" id="f-title" placeholder="Наприклад: Кобзар"/></div>
+        <div class="form-group"><label>Автор *</label><input type="text" id="f-author" placeholder="Наприклад: Тарас Шевченко"/></div>
+        <div class="form-group"><label>Рік видання</label><input type="number" id="f-year" placeholder="Наприклад: 1840"/></div>
+        <div class="form-group">
+          <label>Жанр</label>
+          <select id="f-genre">
+            <option value="">— Оберіть жанр —</option>
+            <option>Роман</option><option>Повість</option><option>Поезія</option>
+            <option>Драма</option><option>Антиутопія</option><option>Фантастика</option>
+            <option>Детектив</option><option>Мемуари</option><option>Наукова</option>
+          </select>
+        </div>
+        <button class="btn-primary" onclick="addBook()">Додати до каталогу</button>
+      </div>
+    </div>
+
+    <!-- Оренди -->
+    <div class="panel" id="panel-rentals">
+      <div class="section-title">Активні оренди</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Книга</th><th>Автор</th><th>Орендатор</th><th>Дата оренди</th></tr></thead>
+          <tbody id="rentals-tbody"><tr><td colspan="4" class="empty">Завантаження...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Modal оренди -->
+<div class="modal-overlay" id="rent-modal">
+  <div class="modal">
+    <h3>Орендувати книгу</h3>
+    <div class="form-group">
+      <label>Ваше імʼя</label>
+      <input type="text" id="rent-name" placeholder="Наприклад: Іван Франко"/>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Скасувати</button>
+      <button class="btn-confirm" onclick="confirmRent()">Орендувати</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API = '/api';
+  let token   = sessionStorage.getItem('jwt') || null;
+  let me      = JSON.parse(sessionStorage.getItem('me') || 'null');
+  let allBooks = [];
+  let currentFilter = 'all';
+  let pendingRentId  = null;
+  let authMode = 'login';
+
+  // ── Заголовки з токеном ───────────────────────────────
+  function authHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` };
+  }
+
+  // ── Auth UI ───────────────────────────────────────────
+  function switchAuthTab(mode) {
+    authMode = mode;
+    document.getElementById('tab-login').classList.toggle('active', mode === 'login');
+    document.getElementById('tab-register').classList.toggle('active', mode === 'register');
+    document.getElementById('auth-btn').textContent = mode === 'login' ? 'Увійти' : 'Зареєструватись';
+    document.getElementById('role-group').style.display = mode === 'register' ? 'block' : 'none';
+    document.getElementById('auth-error').classList.remove('show');
+  }
+
+  function showAuthError(msg) {
+    const el = document.getElementById('auth-error');
+    el.textContent = msg;
+    el.classList.add('show');
+  }
+
+  async function submitAuth() {
+    const username = document.getElementById('a-username').value.trim();
+    const password = document.getElementById('a-password').value;
+    const role     = document.getElementById('a-role').value;
+
+    if (!username || !password) { showAuthError('Заповніть логін і пароль'); return; }
+
+    const url  = authMode === 'login' ? `${API}/auth/login` : `${API}/auth/register`;
+    const body = authMode === 'login' ? { username, password } : { username, password, role };
+
+    const res  = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+
+    if (!res.ok) { showAuthError(data.error || 'Помилка авторизації'); return; }
+
+    token = data.token;
+    me    = data.user;
+    sessionStorage.setItem('jwt', token);
+    sessionStorage.setItem('me', JSON.stringify(me));
+    enterApp();
+  }
+
+  function enterApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('user-pill').textContent = `${me.username} · ${me.role}`;
+    if (me.role === 'admin') document.body.classList.add('is-admin');
+    loadBooks();
+  }
+
+  function logout() {
+    token = null; me = null;
+    sessionStorage.removeItem('jwt');
+    sessionStorage.removeItem('me');
+    document.body.classList.remove('is-admin');
+    document.getElementById('app').style.display = 'none';
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('a-password').value = '';
+    document.getElementById('auth-error').classList.remove('show');
+  }
+
+  // ── Утиліти ───────────────────────────────────────────
+  function toast(msg, type = 'success') {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.className = `show ${type}`;
+    setTimeout(() => { el.className = ''; }, 3200);
+  }
+
+  function switchPanel(name, btn) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('nav button:not(.btn-logout)').forEach(b => b.classList.remove('active'));
+    document.getElementById(`panel-${name}`).classList.add('active');
+    btn.classList.add('active');
+    if (name === 'books')   loadBooks();
+    if (name === 'rentals') loadRentals();
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderBooks();
+  }
+
+  function closeModal() {
+    document.getElementById('rent-modal').classList.remove('open');
+    pendingRentId = null;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('uk-UA', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  // ── API запити (з токеном) ────────────────────────────
+  async function loadBooks() {
+    const res  = await fetch(`${API}/books`);
+    const data = await res.json();
+    allBooks   = data.books || [];
+    renderStats();
+    renderBooks();
+  }
+
+  function renderStats() {
+    const total  = allBooks.length;
+    const avail  = allBooks.filter(b => b.available).length;
+    const rented = total - avail;
+    document.getElementById('stats').innerHTML = `
+      <div class="stat"><div class="num">${total}</div><div class="lbl">Всього книг</div></div>
+      <div class="stat"><div class="num">${avail}</div><div class="lbl">Доступно</div></div>
+      <div class="stat"><div class="num">${rented}</div><div class="lbl">Орендовано</div></div>
+    `;
+  }
+
+  function renderBooks() {
+    let books = allBooks;
+    if (currentFilter === 'available') books = books.filter(b =>  b.available);
+    if (currentFilter === 'rented')    books = books.filter(b => !b.available);
+
+    const grid = document.getElementById('books-grid');
+    if (!books.length) { grid.innerHTML = '<div class="empty">Книг не знайдено</div>'; return; }
+
+    const isAdmin = me && me.role === 'admin';
+
+    grid.innerHTML = books.map(b => `
+      <div class="book-card">
+        <div class="book-title">${b.title}</div>
+        <div class="book-author">${b.author}</div>
+        <div class="book-meta">
+          ${b.year ? `<span class="tag">${b.year}</span>` : ''}
+          <span class="tag">${b.genre || '—'}</span>
+          <span class="badge ${b.available ? 'available' : 'rented'}">${b.available ? '✓ Доступна' : '✗ Орендована'}</span>
+        </div>
+        ${!b.available ? `<div class="rented-info">📖 ${b.rentedBy} · ${formatDate(b.rentedAt)}</div>` : ''}
+        <div class="book-actions">
+          <button class="btn btn-rent"   ${!b.available ? 'disabled' : ''} onclick="openRentModal('${b.id}')">Орендувати</button>
+          <button class="btn btn-return" ${ b.available ? 'disabled' : ''} onclick="returnBook('${b.id}')">Повернути</button>
+          ${isAdmin ? `<button class="btn btn-delete" onclick="deleteBook('${b.id}')">Видалити</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadRentals() {
+    const res  = await fetch(`${API}/rentals`);
+    const data = await res.json();
+    const tbody = document.getElementById('rentals-tbody');
+    if (!data.rentals || !data.rentals.length) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty">Немає активних оренд</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.rentals.map(r => `
+      <tr>
+        <td>${r.title}</td>
+        <td style="color:var(--muted)">${r.author}</td>
+        <td>${r.rentedBy}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;font-size:0.78rem;color:var(--muted)">${formatDate(r.rentedAt)}</td>
+      </tr>
+    `).join('');
+  }
+
+  async function addBook() {
+    const title  = document.getElementById('f-title').value.trim();
+    const author = document.getElementById('f-author').value.trim();
+    const year   = document.getElementById('f-year').value;
+    const genre  = document.getElementById('f-genre').value;
+
+    if (!title || !author) { toast('Заповніть обовʼязкові поля', 'error'); return; }
+
+    const res  = await fetch(`${API}/books`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ title, author, year: year ? +year : null, genre }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      toast(`✓ "${data.book.title}" додано до каталогу`);
+      ['f-title','f-author','f-year'].forEach(id => document.getElementById(id).value = '');
+      document.getElementById('f-genre').value = '';
+    } else {
+      toast(data.error || 'Помилка', 'error');
+    }
+  }
+
+  function openRentModal(bookId) {
+    pendingRentId = bookId;
+    document.getElementById('rent-name').value = '';
+    document.getElementById('rent-modal').classList.add('open');
+    setTimeout(() => document.getElementById('rent-name').focus(), 100);
+  }
+
+  async function confirmRent() {
+    const userName = document.getElementById('rent-name').value.trim();
+    if (!userName) { toast('Введіть своє імʼя', 'error'); return; }
+
+    const res  = await fetch(`${API}/rentals/rent`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ bookId: pendingRentId, userName }),
+    });
+    const data = await res.json();
+    closeModal();
+
+    if (res.ok) { toast(`✓ ${data.message}`); loadBooks(); }
+    else         { toast(data.error || 'Помилка', 'error'); }
+  }
+
+  async function returnBook(bookId) {
+    const res  = await fetch(`${API}/rentals/return`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({ bookId }),
+    });
+    const data = await res.json();
+
+    if (res.ok) { toast(`✓ ${data.message}`); loadBooks(); }
+    else         { toast(data.error || 'Помилка', 'error'); }
+  }
+
+  async function deleteBook(bookId) {
+    if (!confirm('Видалити цю книгу?')) return;
+
+    const res  = await fetch(`${API}/books/${bookId}`, { method: 'DELETE', headers: authHeaders() });
+    const data = await res.json();
+
+    if (res.ok) { toast(`✓ Книгу "${data.book.title}" видалено`); loadBooks(); }
+    else         { toast(data.error || 'Помилка', 'error'); }
+  }
+
+  // ── Закриття модалки ──────────────────────────────────
+  document.getElementById('rent-modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+  document.getElementById('rent-name').addEventListener('keydown', e => { if (e.key === 'Enter') confirmRent(); });
+  ['a-username','a-password'].forEach(id => {
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+  });
+
+  // ── Ініціалізація — якщо токен вже є, входимо одразу ─
+  if (token && me) {
+    enterApp();
+  }
+</script>
+</body>
+</html>

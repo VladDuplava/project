@@ -1,0 +1,40 @@
+#!/usr/bin/env node
+// bin/www — точка входу HTTP-сервера
+
+require('dotenv').config();
+
+const { connectDB } = require('../config/database');
+const buildApp = require('../app');
+
+const PORT = process.env.PORT || 3000;
+
+async function start() {
+  await connectDB();
+
+  const app = buildApp();
+
+  app.listen(PORT, () => {
+    console.log('');
+    console.log('📚  Бібліотечний API v2.1 (MySQL) запущено!');
+    console.log(`🌐  Адреса:     http://localhost:${PORT}`);
+    console.log(`📖  Swagger UI: http://localhost:${PORT}/api-docs`);
+    console.log('');
+    console.log('  GET    /api/books                — всі книги');
+    console.log('  GET    /api/books?available=true — доступні');
+    console.log('  GET    /api/books/:id            — книга за ID');
+    console.log('  POST   /api/books                — додати книгу');
+    console.log('  DELETE /api/books/:id            — видалити книгу');
+    console.log('  GET    /api/rentals              — орендовані');
+    console.log('  POST   /api/rentals/rent         — орендувати');
+    console.log('  POST   /api/rentals/return       — повернути');
+    console.log('  GET    /api/stats                — статистика');
+    console.log('  GET    /api/stats/genres         — по жанрах');
+    console.log('  GET    /api/stats/top            — топ книги');
+    console.log('');
+  });
+}
+
+start().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
